@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Interactive 3D concept of a modular prosthesis with swappable task modules, by Arvindh Balaji.">
+<title>Modular Limb Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html,body{margin:0}img{max-width:100%}
+ 
+/* Layout: CAD workbench. Big 3D viewport left, module picker and spec sheet right; stacks to one column on phones. */
+:root{
+  --bg:#e8ecef;
+  --surface:#f6f8f9;
+  --ink:#14212b;
+  --muted:#566673;
+  --line:#cbd4db;
+  --accent:#d98a0b;
+  --accent-ink:#8a5300;
+  --accent-soft:rgba(217,138,11,.12);
+  --viewer:#dde4e9;
+  --grid-a:#93a5b3;
+  --grid-b:#bfcbd4;
+  --f-display:'Barlow Condensed','Arial Narrow',sans-serif;
+  --f-body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1519;--surface:#162027;--ink:#e3e9ed;--muted:#8c9daa;--line:#26333d;
+    --accent:#f2a93b;--accent-ink:#f5c57e;--accent-soft:rgba(242,169,59,.14);
+    --viewer:#131c22;--grid-a:#3b4b57;--grid-b:#22303a;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1519;--surface:#162027;--ink:#e3e9ed;--muted:#8c9daa;--line:#26333d;
+  --accent:#f2a93b;--accent-ink:#f5c57e;--accent-soft:rgba(242,169,59,.14);
+  --viewer:#131c22;--grid-a:#3b4b57;--grid-b:#22303a;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(34px,5vw,54px);line-height:.95;letter-spacing:-.01em;margin:0;text-wrap:balance;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--accent)}
+.lede{max-width:60ch;color:var(--muted);margin:10px 0 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{font:600 14px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;border:0;background:transparent;color:var(--muted);padding:10px 18px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+ 
+.bench{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.bench{grid-template-columns:minmax(0,1fr)}}
+ 
+.viewer{position:relative;height:clamp(420px,72vh,760px);border-radius:14px;overflow:hidden;border:1px solid var(--line);
+  background:radial-gradient(120% 90% at 50% 35%,var(--surface) 0%,var(--viewer) 70%)}
+@media (max-width:900px){.viewer{height:clamp(360px,62vh,560px)}}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#c:active{cursor:grabbing}
+.ov{position:absolute;pointer-events:none;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--muted)}
+.ov-tl{top:14px;left:14px;display:flex;flex-direction:column;gap:4px}
+.ov-tl b{font:700 18px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.ov-bl{bottom:14px;left:14px;display:flex;flex-direction:column;gap:6px}
+.ov-bl span{display:flex;align-items:center;gap:8px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid var(--line)}
+.sw.amber{background:var(--accent)}
+.sw.base{background:#a9b1b8}
+.sw.mod{background:repeating-linear-gradient(45deg,#2a2f34 0 3px,#454c53 3px 6px)}
+.ov-br{bottom:14px;right:14px;text-align:right}
+.tools{position:absolute;top:12px;right:12px;display:flex;gap:6px}
+.tools button{font:500 11px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:9px 11px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);cursor:pointer}
+.tools button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted)}
+@media (max-width:520px){.ov-br{display:none}.ov-tl b{font-size:16px}}
+ 
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.label{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.mods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mod{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);cursor:pointer;font:inherit;transition:border-color .15s,background .15s}
+.mod:hover{border-color:var(--muted)}
+.mod[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.mod-task{font:700 20px/1.05 var(--f-display);text-transform:uppercase;letter-spacing:.03em}
+.mod-name{font-size:13px;color:var(--muted);line-height:1.25}
+.mod-meta{font:500 11px/1 var(--f-mono);color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.mod[aria-pressed="true"] .mod-meta{color:var(--accent-ink)}
+ 
+.sheet{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:18px}
+.sheet h2{font:700 30px/1 var(--f-display);text-transform:uppercase;letter-spacing:.01em;margin:4px 0 10px;text-wrap:balance}
+.tag{display:inline-block;font:500 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);padding:5px 8px;border-radius:999px}
+.sheet p{margin:0 0 14px;max-width:62ch}
+dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0;margin:0;border-top:1px solid var(--line)}
+dt,dd{padding:8px 0;border-bottom:1px solid var(--line);margin:0}
+dt{font:500 11px/1.6 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-right:16px;white-space:nowrap}
+dd{font-size:14px}
+.ref{font-size:13px;color:var(--muted);margin:12px 0 0!important}
+.ref b{color:var(--ink);font-weight:600}
+ 
+.base{border:1px dashed var(--line);border-radius:12px;padding:16px 18px}
+.base h3{font:700 18px/1 var(--f-display);text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px}
+.base ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.base li{display:grid;grid-template-columns:118px minmax(0,1fr);gap:10px;font-size:14px}
+.base li span:first-child{font-weight:600}
+.base li span:last-child{color:var(--muted)}
+.base li.amber span:first-child{color:var(--accent-ink)}
+@media (max-width:420px){.base li{grid-template-columns:minmax(0,1fr);gap:0}}
+footer{font-size:12.5px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion: reduce){.mod{transition:none}}
+</style>
+</head>
+<body>
+ 
+ 
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Concept CAD · after "A Comprehensive Review on Modular Prosthetics" (Balaji, 2023)</p>
+      <h1>One base, <em>many limbs</em></h1>
+      <p class="lede">The socket, pylon and electronics stay on the body. Only the end module changes, through one amber coupler, so a user can switch from running to cycling to swimming without a new prosthesis.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Choose limb system">
+      <button id="sys-leg" data-sys="leg" aria-pressed="true">Leg</button>
+      <button id="sys-arm" data-sys="arm" aria-pressed="false">Arm</button>
+    </div>
+  </header>
+ 
+  <div class="bench">
+    <div class="viewer" id="viewer">
+      <canvas id="c" aria-label="3D model of the modular prosthesis. Drag to rotate."></canvas>
+      <div class="ov ov-tl"><span id="ov-sys">Lower limb · transtibial</span><b id="ov-mod">Sprint blade</b></div>
+      <div class="tools">
+        <button id="t-explode" aria-pressed="false">Explode</button>
+        <button id="t-spin" aria-pressed="true">Spin</button>
+        <button id="t-reset">Reset</button>
+      </div>
+      <div class="ov ov-bl">
+        <span><i class="sw amber"></i>Universal coupler</span>
+        <span><i class="sw base"></i>Shared base</span>
+        <span><i class="sw mod"></i>Swappable module</span>
+      </div>
+      <div class="ov ov-br">Drag to orbit · scroll or pinch to zoom</div>
+    </div>
+ 
+    <aside class="side">
+      <div>
+        <p class="label">Pick a task, the module swaps on the same base</p>
+        <div class="mods" id="mods"></div>
+      </div>
+      <section class="sheet" id="sheet" aria-live="polite"></section>
+      <section class="base" id="base"></section>
+    </aside>
+  </div>
+ 
+  <footer>Concept render built from primitive geometry. Masses, temperatures and loads are design targets for discussion, not tested values. Section numbers point to the matching part of the review paper.</footer>
+</div>
+ 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const DATA = {
+  leg:{
+    sysLabel:'Lower limb · transtibial',
+    base:{title:'Shared leg base, stays on', parts:[
+      ['Socket','Carbon laminate, molded from a scan of the residual limb'],
+      ['Liner','Silicone sleeve that cushions and seals'],
+      ['Pyramid adapter','The industry standard alignment joint, tuned with 4 set screws'],
+      ['Pylon','Titanium tube, 30 mm, cut to the user’s height'],
+      ['Gait sensor','Small IMU pod that logs steps and load for the clinician'],
+      ['Coupler','Amber twist lock with a lever release, keyed so a foot only seats one way',1]
+    ]},
+    modules:[
+      {id:'run',task:'Running',name:'Sprint blade',mass:'520 g',
+       desc:'A C shaped carbon spring with no heel. It compresses when the runner lands and gives that energy back on push off, so the user stays up on the toe for the whole stride.',
+       specs:[['Material','Carbon fiber laminate'],['Spring','C curve, stiffness picked by body weight'],['Sole','Spiked rubber plate, forefoot only'],['Heel','None'],['Swap','Lever off, blade on, about 10 s']],
+       ref:'§2.1 Materials and manufacturing, §8 Biomechanical studies'},
+      {id:'bike',task:'Cycling',name:'Clip in cycling foot',mass:'410 g',
+       desc:'A stiff foot that does not flex, so the leg’s force goes straight into the pedal. The cleat clips into standard clipless pedals, and a short heel keeps the foot clear of the crank arm.',
+       specs:[['Keel','Rigid carbon, no flex'],['Cleat','2 bolt SPD, fits clipless pedals'],['Ankle','Locked, no up and down motion'],['Heel','Shortened for crank clearance'],['Extension','Titanium tube sets pedal height']],
+       ref:'§4 User centered design and customization'},
+      {id:'swim',task:'Swimming',name:'Fin foot',mass:'380 g',
+       desc:'A 3D printed foot with a silicone fin. The ankle locks pointed for kicking. Drain ports let water pass through so the foot never fills up or drags, and there are no electronics to seal.',
+       specs:[['Foot shell','3D printed nylon (PA12)'],['Fin','Silicone with 3 stiffening ribs'],['Ankle','Dial lock, pointed for kicking'],['Drain','4 flow through ports'],['Buoyancy','Close to neutral in water']],
+       ref:'§3 Additive manufacturing and 3D printing'}
+    ]
+  },
+  arm:{
+    sysLabel:'Upper limb · transradial',
+    base:{title:'Shared arm base, stays on', parts:[
+      ['Socket','Carbon laminate that holds on by its own fit'],
+      ['Muscle sensors','2 EMG electrodes read forearm muscle signals'],
+      ['Forearm shell','Holds the battery and motor driver'],
+      ['Status light','Shows battery and connection at a glance'],
+      ['Wrist coupler','Amber quick disconnect on a 1/2-20 thread, the common terminal device standard',1]
+    ]},
+    modules:[
+      {id:'game',task:'Gaming',name:'Precision hand',mass:'430 g',
+       desc:'A five finger hand built for controllers and touchscreens. The index finger rests ready for triggers and the thumb pad is sized for analog sticks. Fingertip sensors send a buzz back to the socket so the user feels each press.',
+       specs:[['Fingers','5, each with its own motor'],['Fingertips','Conductive caps for touchscreens'],['Thumb','Grippy pad for analog sticks'],['Feedback','Force sensors drive a vibration motor'],['Control','Muscle patterns pick the grip']],
+       ref:'§5 Sensor integration and feedback, §9 Neurological research'},
+      {id:'cook',task:'Cooking',name:'Kitchen gripper',mass:'360 g',
+       desc:'Parallel jaws with heat safe silicone pads hold spatulas, knives and pot handles without crushing them. The wrist spins all the way around for stirring, and the sealed body rinses clean under the tap.',
+       specs:[['Grip','Parallel jaws, 0 to 45 mm'],['Pads','Food safe silicone, rated to 230 °C'],['Wrist','Spins 360° for stirring'],['Tool mount','Collet underneath for utensil handles'],['Cleaning','Sealed body, rinse under the tap']],
+       ref:'§4 User centered design, §7 Patient satisfaction and quality of life'},
+      {id:'climb',task:'Climbing',name:'Climbing hook',mass:'290 g',
+       desc:'A machined aluminum hook that curls over holds the way fingers do. Climbing rubber lines the inside of the curve and a ledge underneath catches thin crimps. No motors or batteries, so nothing breaks in a fall.',
+       specs:[['Hook','7075 aluminum, machined'],['Grip surface','Climbing rubber on the inner curve'],['Crimp ledge','Rubber edge under the shank'],['Electronics','None, fully passive'],['Load target','1.5 kN, about 150 kg']],
+       ref:'§8 Biomechanical studies'}
+    ]
+  }
+};
+ 
+const state = {sys:'leg', mod:{leg:'run', arm:'game'}};
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+ 
+/* ---------- UI ---------- */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function renderUI(){
+  const d = DATA[state.sys];
+  const cur = d.modules.find(m=>m.id===state.mod[state.sys]);
+  $('#mods').innerHTML = d.modules.map(m=>
+    `<button class="mod" id="mod-${m.id}" data-id="${m.id}" aria-pressed="${m.id===cur.id}">
+      <span class="mod-task">${esc(m.task)}</span><span class="mod-name">${esc(m.name)}</span><span class="mod-meta">${esc(m.mass)}</span></button>`).join('');
+  $('#sheet').innerHTML = `<span class="tag">${esc(cur.task)} module</span><h2>${esc(cur.name)}</h2><p>${esc(cur.desc)}</p>
+    <dl><dt>Mass target</dt><dd>${esc(cur.mass)}</dd>${cur.specs.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    <p class="ref"><b>From the paper:</b> ${esc(cur.ref)}</p>`;
+  $('#base').innerHTML = `<h3>${esc(d.base.title)}</h3><ul>${d.base.parts.map(p=>`<li class="${p[2]?'amber':''}"><span>${esc(p[0])}</span><span>${esc(p[1])}</span></li>`).join('')}</ul>`;
+  $('#ov-sys').textContent = d.sysLabel;
+  $('#ov-mod').textContent = cur.name;
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.sys===state.sys));
+}
+$('#mods').addEventListener('click', e=>{
+  const b = e.target.closest('.mod'); if(!b) return;
+  if(state.mod[state.sys]===b.dataset.id) return;
+  state.mod[state.sys] = b.dataset.id; renderUI(); if(window.__swap) window.__swap();
+});
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  if(state.sys===b.dataset.sys) return;
+  state.sys = b.dataset.sys; renderUI(); if(window.__sys) window.__sys();
+}));
+renderUI();
+ 
+/* ---------- 3D ---------- */
+if(!window.THREE){ $('#viewer').insertAdjacentHTML('beforeend','<div class="nogl">The 3D library did not load. Check your connection and reload.</div>'); return; }
+let renderer;
+const canvas = $('#c'), viewer = $('#viewer');
+try{ renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); }
+catch(err){ viewer.insertAdjacentHTML('beforeend','<div class="nogl">This device could not start the 3D view (WebGL is off or unsupported).</div>'); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000, 0);
+ 
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 1200);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+controls.minDistance = 25; controls.maxDistance = 320;
+controls.autoRotate = !reduce; controls.autoRotateSpeed = 0.9;
+controls.maxPolarAngle = Math.PI*0.62;
+ 
+scene.add(new THREE.HemisphereLight(0xf4f8ff, 0x3a4652, 0.75));
+const key = new THREE.DirectionalLight(0xffffff, 1.25);
+key.position.set(30,70,40); key.castShadow = true;
+key.shadow.mapSize.set(1024,1024);
+Object.assign(key.shadow.camera,{left:-60,right:60,top:60,bottom:-60,near:1,far:240});
+key.shadow.bias = -0.0004;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xdfe8ff, 0.5); fill.position.set(-40,20,-10); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xfff1dd, 0.7); rim.position.set(0,30,-50); scene.add(rim);
+ 
+const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(400,400), new THREE.ShadowMaterial({opacity:0.16}));
+shadowPlane.rotation.x = -Math.PI/2; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
+let grid = null;
+function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888';}
+function buildGrid(){
+  if(grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  grid = new THREE.GridHelper(200, 40, new THREE.Color(cssVar('--grid-a')), new THREE.Color(cssVar('--grid-b')));
+  grid.position.y = 0.02; grid.material.transparent = true; grid.material.opacity = 0.75;
+  scene.add(grid);
+}
+buildGrid();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>setTimeout(buildGrid,30));
+new MutationObserver(()=>setTimeout(buildGrid,30)).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+ 
+/* carbon weave texture */
+const weave = document.createElement('canvas'); weave.width = weave.height = 128;
+(function(){
+  const g = weave.getContext('2d'), n = 8, s = 128/n;
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    const horiz = Math.floor((i+j)/2)%2===0;
+    const gr = horiz ? g.createLinearGradient(0,j*s,0,j*s+s) : g.createLinearGradient(i*s,0,i*s+s,0);
+    gr.addColorStop(0,'#16191c'); gr.addColorStop(.5,'#434a51'); gr.addColorStop(1,'#16191c');
+    g.fillStyle = gr; g.fillRect(i*s,j*s,s,s);
+  }
+})();
+function weaveTex(rx,ry){
+  const t = new THREE.CanvasTexture(weave);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx,ry);
+  t.encoding = THREE.sRGBEncoding; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const std = (o)=>new THREE.MeshStandardMaterial(o);
+const M = {
+  carbonL: new THREE.MeshPhysicalMaterial({map:weaveTex(10,5),roughness:.42,metalness:.15,clearcoat:1,clearcoatRoughness:.12,side:THREE.DoubleSide}),
+  carbonE: new THREE.MeshPhysicalMaterial({map:weaveTex(.35,.35),roughness:.42,metalness:.15,clearcoat:1,clearcoatRoughness:.12}),
+  ti: std({color:0xaab2b9,metalness:.78,roughness:.3}),
+  alu: std({color:0xc9cfd4,metalness:.62,roughness:.38}),
+  steel: std({color:0xb5bcc2,metalness:.85,roughness:.25}),
+  dark: std({color:0x2a3036,metalness:.4,roughness:.5}),
+  hole: std({color:0x101315,metalness:0,roughness:1}),
+  anod: std({color:0x3c4a58,metalness:.65,roughness:.35}),
+  accent: std({color:0xe39a1c,metalness:.5,roughness:.32,emissive:0x000000}),
+  liner: std({color:0x8b979f,metalness:0,roughness:.9,side:THREE.DoubleSide}),
+  rubber: std({color:0x1b1e21,metalness:0,roughness:.95}),
+  nylon: std({color:0xe3e6e8,metalness:0,roughness:.82}),
+  copper: std({color:0xc07a45,metalness:.85,roughness:.3}),
+  silicone: std({color:0xd2573c,metalness:0,roughness:.6}),
+  wood: std({color:0xb88a57,metalness:0,roughness:.75}),
+  fin: new THREE.MeshPhysicalMaterial({color:0x3aa6c6,roughness:.3,metalness:0,transparent:true,opacity:.8,side:THREE.DoubleSide,clearcoat:.6}),
+  finRib: std({color:0x23708c,metalness:.1,roughness:.4}),
+  led: new THREE.MeshBasicMaterial({color:0x52e38a})
+};
+const V2 = THREE.Vector2, V3 = THREE.Vector3;
+function mesh(geo, mat){ const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; return m; }
+function cyl(rt,rb,h,seg){ return new THREE.CylinderGeometry(rt,rb,h,seg||32); }
+function cylX(rt,rb,h,seg){ const g = cyl(rt,rb,h,seg); g.rotateZ(-Math.PI/2); return g; } // +y to +x
+function cylZ(r,h,seg){ const g = cyl(r,r,h,seg); g.rotateX(Math.PI/2); return g; }
+function roundedBox(w,h,d,r){
+  const b = Math.min(r*0.6, h/2-0.01);
+  const sw = w-2*b, sd = d-2*b, rc = Math.max(0.01, Math.min(r, sw/2-0.01, sd/2-0.01));
+  const s = new THREE.Shape(), x0 = -sw/2, y0 = -sd/2;
+  s.moveTo(x0+rc,y0); s.lineTo(x0+sw-rc,y0); s.quadraticCurveTo(x0+sw,y0,x0+sw,y0+rc);
+  s.lineTo(x0+sw,y0+sd-rc); s.quadraticCurveTo(x0+sw,y0+sd,x0+sw-rc,y0+sd);
+  s.lineTo(x0+rc,y0+sd); s.quadraticCurveTo(x0,y0+sd,x0,y0+sd-rc);
+  s.lineTo(x0,y0+rc); s.quadraticCurveTo(x0,y0,x0+rc,y0);
+  const depth = Math.max(h-2*b, 0.01);
+  const g = new THREE.ExtrudeGeometry(s,{depth, bevelEnabled:true, bevelThickness:b, bevelSize:b, bevelSegments:3, curveSegments:6});
+  g.translate(0,0,-depth/2); g.rotateX(-Math.PI/2);
+  return g;
+}
+function extrude(shape, depth, bevel){
+  const b = bevel==null ? 0.15 : bevel;
+  const g = new THREE.ExtrudeGeometry(shape,{depth, bevelEnabled:b>0, bevelThickness:b, bevelSize:b*0.8, bevelSegments:2, curveSegments:24});
+  g.translate(0,0,-depth/2); return g;
+}
+function makeSocket(len, rOpen, rClosed, wall){
+  const pts = [new V2(0.001,0)];
+  const dh = rClosed*0.45;
+  for(let i=1;i<=6;i++){ const a = i/6*Math.PI/2; pts.push(new V2(Math.sin(a)*rClosed, (1-Math.cos(a))*dh)); }
+  const N = 16;
+  for(let i=1;i<=N;i++){ const t = i/N; pts.push(new V2(rClosed+(rOpen-rClosed)*Math.pow(t,0.85), dh+(len-dh)*t)); }
+  const outerCount = pts.length;
+  pts.push(new V2(rOpen-wall/2, len+wall*0.35));
+  for(let i=outerCount-1;i>=1;i--){ const p = pts[i]; pts.push(new V2(Math.max(0.001,p.x-wall), Math.min(len, p.y+wall))); }
+  pts.push(new V2(0.001, wall));
+  return new THREE.LatheGeometry(pts, 56);
+}
+ 
+/* part registry for explode view */
+function part(group, obj, ex){ obj.userData.home = obj.position.clone(); obj.userData.ex = ex; group.add(obj); return obj; }
+ 
+/* ===== LEG BASE ===== */
+function buildLegBase(){
+  const g = new THREE.Group(), parts = [];
+  const sock = new THREE.Group();
+  const s = mesh(makeSocket(26,7.2,4.6,0.45), M.carbonL); s.position.y = 42; sock.add(s);
+  const ln = mesh(makeSocket(24.6,6.6,4.0,0.15), M.liner); ln.position.y = 43.4; sock.add(ln);
+  const brim = mesh(new THREE.TorusGeometry(6.95,0.48,14,72), M.liner); brim.rotation.x = Math.PI/2; brim.position.y = 68.15; sock.add(brim);
+  const plate = mesh(cyl(2.8,2.8,1.4), M.alu); plate.position.y = 41.4; sock.add(plate);
+  const pyr = mesh(cyl(1.9,1.2,1.3,4), M.ti); pyr.rotation.y = Math.PI/4; pyr.position.y = 40.1; sock.add(pyr);
+  parts.push(part(g, sock, new V3(0,12,0)));
+ 
+  const rec = new THREE.Group();
+  const rb = mesh(cyl(2.2,2.0,2.4), M.alu); rb.position.y = 38.4; rec.add(rb);
+  for(let k=0;k<4;k++){
+    const a = k*Math.PI/2 + Math.PI/4;
+    const sc = mesh(cyl(0.3,0.3,0.9,12), M.dark); sc.rotation.z = Math.PI/2; sc.rotation.y = -a;
+    sc.position.set(Math.cos(a)*2.2, 38.7, Math.sin(a)*2.2); rec.add(sc);
+  }
+  parts.push(part(g, rec, new V3(0,6,0)));
+ 
+  const py = new THREE.Group();
+  py.add(mesh(cyl(1.5,1.5,20), M.ti)); py.children[0].position.y = 27.2;
+  const clamp = mesh(cyl(2.05,2.05,2.2), M.alu); clamp.position.y = 17.4; py.add(clamp);
+  const cb = mesh(cylZ(0.28,4.6,12), M.dark); cb.position.set(1.2,17.6,0); py.add(cb);
+  const pod = mesh(roundedBox(1.3,4.2,2.6,0.4), M.dark); pod.position.set(1.95,28,0); py.add(pod);
+  const strap = mesh(new THREE.TorusGeometry(1.62,0.18,10,40), M.dark); strap.rotation.x = Math.PI/2; strap.position.y = 27; py.add(strap);
+  const strap2 = strap.clone(); strap2.position.y = 29; py.add(strap2);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.22,12,8), M.led); led.position.set(2.62,29.4,0); py.add(led);
+  parts.push(part(g, py, new V3(0,0,0)));
+ 
+  const cp = new THREE.Group();
+  const ring = mesh(cyl(2.7,2.7,1.3,48), M.accent); ring.position.y = 15.15; cp.add(ring);
+  const lever = mesh(roundedBox(0.7,0.55,2.4,0.2), M.dark); lever.position.set(0,15.2,3.3); cp.add(lever);
+  const leverTip = mesh(roundedBox(1.2,0.7,0.8,0.25), M.accent); leverTip.position.set(0,15.2,4.6); cp.add(leverTip);
+  parts.push(part(g, cp, new V3(0,-3,0)));
+  return {group:g, parts};
+}
+function legCoupler(m){
+  const p = mesh(cyl(2.5,2.5,0.7,48), M.alu); p.position.y = -0.35; m.add(p);
+  const key = mesh(new THREE.BoxGeometry(0.5,0.5,0.9), M.accent); key.position.set(0,-0.3,2.4); m.add(key);
+}
+ 
+/* curved spring blade */
+function bladeGeo(arr, t0, t1, w){
+  const curve = new THREE.SplineCurve(arr.map(p=>new V2(p[0],p[1])));
+  const N = 96, top = [], bot = [], samples = [];
+  for(let i=0;i<=N;i++){
+    const u = i/N, p = curve.getPointAt(u), tg = curve.getTangentAt(u);
+    const n = new V2(-tg.y, tg.x), t = t0+(t1-t0)*u;
+    top.push(p.clone().addScaledVector(n, t/2)); bot.push(p.clone().addScaledVector(n, -t/2));
+    samples.push({p,n,t,u});
+  }
+  const s = new THREE.Shape(); s.moveTo(top[0].x, top[0].y);
+  top.slice(1).forEach(q=>s.lineTo(q.x,q.y)); bot.reverse().forEach(q=>s.lineTo(q.x,q.y)); s.closePath();
+  return {geo:extrude(s, w, 0.16), samples};
+}
+function buildRun(){
+  const m = new THREE.Group(); legCoupler(m);
+  const br = mesh(roundedBox(2.6,3.0,4.2,0.3), M.alu); br.position.set(-0.2,-2.1,0); m.add(br);
+  [-1.2,-2.7].forEach(y=>{ [-1.1,1.1].forEach(z=>{ const b = mesh(cylX(0.32,0.32,0.4,12), M.steel); b.position.set(1.2,y,z); m.add(b); }); });
+  const W = 4.6;
+  const {geo, samples} = bladeGeo([[-1.25,-1.0],[-1.45,-4],[-2.3,-7.5],[-3.9,-10.6],[-3.5,-12.9],[-1.3,-13.95],[2.5,-14.05],[6.2,-13.85]], 1.2, 0.55, W);
+  m.add(mesh(geo, M.carbonE));
+  const sole = samples.filter(s=>s.u>0.62 && s.p.x>0.8);
+  const a = sole.map(s=>s.p.clone().addScaledVector(s.n,-(s.t/2))), b = sole.map(s=>s.p.clone().addScaledVector(s.n,-(s.t/2+0.4)));
+  const ss = new THREE.Shape(); ss.moveTo(a[0].x,a[0].y); a.slice(1).forEach(q=>ss.lineTo(q.x,q.y)); b.reverse().forEach(q=>ss.lineTo(q.x,q.y)); ss.closePath();
+  m.add(mesh(extrude(ss, W-0.3, 0.06), M.rubber));
+  const spikeGeo = new THREE.ConeGeometry(0.16,0.45,8); spikeGeo.rotateX(Math.PI);
+  const bb = sole.map(s=>s.p.clone().addScaledVector(s.n,-(s.t/2+0.4)));
+  [0.15,0.4,0.65,0.9].forEach(f=>{ const q = bb[Math.floor(f*(bb.length-1))]; [-1.3,1.3].forEach(z=>{ const sp = mesh(spikeGeo, M.steel); sp.position.set(q.x, q.y-0.2, z); m.add(sp); }); });
+  return m;
+}
+function buildBike(){
+  const m = new THREE.Group(); legCoupler(m);
+  const cl = mesh(cyl(1.8,1.8,1.4), M.alu); cl.position.y = -1.4; m.add(cl);
+  const tube = mesh(cyl(1.3,1.3,8.2), M.ti); tube.position.y = -5.4; m.add(tube);
+  const ank = mesh(roundedBox(3.4,2.2,4.6,0.4), M.alu); ank.position.set(0.2,-10,0); m.add(ank);
+  const s = new THREE.Shape(); s.moveTo(-3.3,-12.9);
+  s.splineThru([new V2(-3.4,-11.8),new V2(-2.4,-10.7),new V2(0.5,-10.3),new V2(4,-10.9),new V2(7.5,-12.0),new V2(9.3,-12.9),new V2(9.0,-13.6)]);
+  s.lineTo(8.0,-13.85); s.lineTo(-2.6,-13.85); s.splineThru([new V2(-3.2,-13.5),new V2(-3.3,-12.9)]);
+  m.add(mesh(extrude(s,6.0,0.2), M.carbonE));
+  const cleat = mesh(roundedBox(2.6,0.55,3.4,0.25), M.steel); cleat.position.set(5,-14.15,0); m.add(cleat);
+  const wing = mesh(new THREE.BoxGeometry(0.5,0.3,4.2), M.accent); wing.position.set(6.2,-14.2,0); m.add(wing);
+  [-0.9,0.9].forEach(z=>{ const b = mesh(cyl(0.3,0.3,0.25,12), M.dark); b.position.set(4.6,-14.45,z); m.add(b); });
+  const heel = mesh(roundedBox(2.4,0.3,5.2,0.12), M.rubber); heel.position.set(-1.6,-14.0,0); m.add(heel);
+  const toe = mesh(roundedBox(1.4,0.3,4.6,0.12), M.rubber); toe.position.set(8.1,-13.95,0); m.add(toe);
+  return m;
+}
+function buildSwim(){
+  const m = new THREE.Group(); legCoupler(m);
+  const cl = mesh(cyl(1.8,1.8,1.4), M.alu); cl.position.y = -1.4; m.add(cl);
+  const tube = mesh(cyl(1.3,1.3,5.6), M.ti); tube.position.y = -4.3; m.add(tube);
+  const hub = mesh(cylZ(1.75,5.4,40), M.alu); hub.position.set(0,-7.6,0); m.add(hub);
+  [1,-1].forEach(sd=>{ const dial = mesh(cylZ(1.2,0.4,32), M.accent); dial.position.set(0,-7.6,sd*2.9); m.add(dial);
+    const mark = mesh(new THREE.BoxGeometry(0.25,1.4,0.2), M.dark); mark.position.set(0.25,-7.2,sd*3.15); mark.rotation.z = -0.32; m.add(mark); });
+  const foot = new THREE.Group(); foot.position.set(0,-7.6,0); foot.rotation.z = -0.32; m.add(foot);
+  const s = new THREE.Shape(); s.moveTo(-1.8,0.2);
+  s.splineThru([new V2(-0.5,1.0),new V2(2,0.6),new V2(5.5,-0.4),new V2(8.2,-1.2),new V2(8.6,-1.8)]);
+  s.lineTo(8,-2.2); s.splineThru([new V2(4,-2.4),new V2(0.5,-2.3),new V2(-1.5,-1.6),new V2(-1.8,0.2)]);
+  foot.add(mesh(extrude(s,5.6,0.15), M.nylon));
+  [[2.0,-1.0],[3.6,-1.15],[5.2,-1.3],[6.7,-1.45]].forEach(([x,y])=>{ const h = mesh(cylZ(0.45,5.95,20), M.hole); h.position.set(x,y,0); foot.add(h); });
+  const half = [[3,2.8],[6,3.6],[9,4.8],[12.5,5.8],[15,6.0],[15.4,5.1],[14,1.6],[13.2,0]];
+  const pts = half.map(p=>new V2(p[0],p[1])).concat(half.slice(0,-1).reverse().map(p=>new V2(p[0],-p[1])));
+  const fs = new THREE.Shape(pts);
+  const fg = new THREE.ExtrudeGeometry(fs,{depth:0.22,bevelEnabled:false,curveSegments:12}); fg.rotateX(-Math.PI/2);
+  const fin = mesh(fg, M.fin); fin.position.y = -2.1; foot.add(fin);
+  [-3,0,3].forEach(z=>{ const r = mesh(roundedBox(9.5,0.28,0.32,0.1), M.finRib); r.position.set(9.0,-1.82,z*1.05); r.rotation.y = -z*0.04; foot.add(r); });
+  return m;
+}
+ 
+/* ===== ARM BASE ===== */
+function buildArmBase(){
+  const g = new THREE.Group(), parts = [];
+  const sock = new THREE.Group();
+  const sg = makeSocket(16,5.2,4.0,0.4); sg.rotateZ(Math.PI/2);
+  const s = mesh(sg, M.carbonL); s.position.x = -13.5; sock.add(s);
+  const lg = makeSocket(15,4.65,3.5,0.15); lg.rotateZ(Math.PI/2);
+  const ln = mesh(lg, M.liner); ln.position.x = -14.0; sock.add(ln);
+  const brim = mesh(new THREE.TorusGeometry(4.95,0.38,12,60), M.liner); brim.rotation.y = Math.PI/2; brim.position.x = -29.65; sock.add(brim);
+  const hemi = new THREE.SphereGeometry(0.75,18,10,0,Math.PI*2,0,Math.PI/2);
+  const e1 = mesh(hemi, M.copper); e1.position.set(-22,4.72,0); sock.add(e1);
+  const e2 = mesh(hemi, M.copper); e2.position.set(-22,-4.72,0); e2.rotation.x = Math.PI; sock.add(e2);
+  [[1,0.6],[-1,-0.6]].forEach(([sy,sz])=>{
+    const c = new THREE.CatmullRomCurve3([new V3(-21.4,sy*4.95,0),new V3(-17.5,sy*4.55,sz),new V3(-13.4,sy*4.05,sz*1.3)]);
+    sock.add(mesh(new THREE.TubeGeometry(c,24,0.12,8,false), M.dark));
+  });
+  parts.push(part(g, sock, new V3(-9,0,0)));
+ 
+  const fa = new THREE.Group();
+  const shell = mesh(cylX(2.95,3.95,12,48), M.carbonL); shell.position.x = -7.5; fa.add(shell);
+  const hatch = mesh(roundedBox(5,0.5,2.6,0.2), M.dark); hatch.position.set(-8.2,3.55,0); hatch.rotation.z = -0.08; fa.add(hatch);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.24,12,8), M.led); led.position.set(-5.4,3.6,0); fa.add(led);
+  parts.push(part(g, fa, new V3(-4,0,0)));
+ 
+  const cp = new THREE.Group();
+  const qd = mesh(cylX(2.7,2.7,1.5,48), M.accent); qd.position.x = -0.75; cp.add(qd);
+  const kn = mesh(new THREE.TorusGeometry(2.72,0.2,10,64), M.dark); kn.rotation.y = Math.PI/2; kn.position.x = -1.15; cp.add(kn);
+  const btn = mesh(cyl(0.38,0.38,0.5,16), M.dark); btn.position.set(-0.75,2.85,0); cp.add(btn);
+  parts.push(part(g, cp, new V3(-1,0,0)));
+  return {group:g, parts};
+}
+function armCoupler(m){ const p = mesh(cylX(2.4,2.4,0.8,48), M.alu); p.position.x = 0.4; m.add(p); }
+function finger(lens, curl, r, tipPad){
+  const root = new THREE.Group(); let parent = root;
+  lens.forEach((L,i)=>{
+    const j = new THREE.Group(); j.rotation.z = -curl[i]; parent.add(j);
+    j.add(mesh(new THREE.SphereGeometry(r*1.1,16,12), M.alu));
+    const seg = mesh(cylX(r*0.92, r, L, 18), M.nylon); seg.position.x = L/2; j.add(seg);
+    const nx = new THREE.Group(); nx.position.x = L; j.add(nx); parent = nx;
+  });
+  const tip = mesh(new THREE.SphereGeometry(r*1.02,16,12), M.copper); parent.add(tip);
+  if(tipPad){ const pad = mesh(cyl(r*0.95,r*0.95,0.28,20), M.rubber); pad.position.set(-0.2,-r*0.85,0); parent.add(pad); }
+  return root;
+}
+function buildGame(){
+  const m = new THREE.Group(); armCoupler(m);
+  const stem = mesh(cylX(2.05,2.3,1.4), M.alu); stem.position.x = 1.5; m.add(stem);
+  const palm = mesh(roundedBox(6.2,2.0,6.6,0.7), M.nylon); palm.position.x = 5.0; m.add(palm);
+  const back = mesh(roundedBox(4.8,0.3,5.2,0.6), M.carbonE); back.position.set(5,1.05,0); m.add(back);
+  const bar = mesh(cylZ(0.72,6.6,24), M.alu); bar.position.set(8.1,0.1,0); m.add(bar);
+  const F = [
+    {z:2.45, l:[2.0,1.4,1.1], c:[0.12,0.22,0.18], r:0.6},
+    {z:0.82, l:[2.2,1.5,1.2], c:[0.32,0.42,0.34], r:0.62},
+    {z:-0.82,l:[2.05,1.4,1.1],c:[0.38,0.46,0.36], r:0.6},
+    {z:-2.45,l:[1.6,1.1,0.9], c:[0.42,0.5,0.38], r:0.52}
+  ];
+  F.forEach(f=>{ const fg = finger(f.l,f.c,f.r); fg.position.set(8.3,0.1,f.z); m.add(fg); });
+  const th = finger([2.0,1.6],[0.08,0.18],0.66,true); th.position.set(3.7,-0.35,3.25); th.rotation.y = -0.75; th.rotation.x = -0.25; m.add(th);
+  const thb = mesh(new THREE.SphereGeometry(0.95,18,12), M.alu); thb.position.set(3.7,-0.35,3.2); m.add(thb);
+  return m;
+}
+function buildCook(){
+  const m = new THREE.Group(); armCoupler(m);
+  const rot = mesh(cylX(2.3,2.3,1.2,48), M.steel); rot.position.x = 1.4; m.add(rot);
+  const rr = mesh(new THREE.TorusGeometry(2.32,0.12,8,64), M.accent); rr.rotation.y = Math.PI/2; rr.position.x = 1.4; m.add(rr);
+  const body = mesh(roundedBox(4.6,3.0,4.4,0.5), M.steel); body.position.x = 4.3; m.add(body);
+  [0.9,-0.9].forEach(y=>{ const r = mesh(cylZ(0.3,5.4,16), M.alu); r.position.set(6.9,y,0); m.add(r); });
+  [-1,1].forEach(sd=>{
+    const jaw = mesh(roundedBox(5.6,2.4,0.5,0.15), M.steel); jaw.position.set(9.4,0,sd*1.25); m.add(jaw);
+    const pad = mesh(roundedBox(5.0,2.0,0.54,0.12), M.silicone); pad.position.set(9.6,0,sd*0.73); m.add(pad);
+  });
+  const handle = mesh(roundedBox(8.4,0.9,0.9,0.3), M.wood); handle.position.set(11.2,0,0); m.add(handle);
+  const blade = mesh(roundedBox(4.6,0.26,3.4,0.6), M.wood); blade.position.set(17.4,-0.25,0); blade.rotation.z = -0.12; m.add(blade);
+  const col = mesh(cyl(0.9,0.9,1.8,24), M.steel); col.position.set(4.3,-2.3,0); m.add(col);
+  const colr = mesh(new THREE.TorusGeometry(0.95,0.16,8,32), M.dark); colr.rotation.x = Math.PI/2; colr.position.set(4.3,-2.0,0); m.add(colr);
+  return m;
+}
+function buildClimb(){
+  const m = new THREE.Group(); armCoupler(m);
+  const stem = mesh(cylX(2.0,2.25,1.4), M.alu); stem.position.x = 1.5; m.add(stem);
+  const s = new THREE.Shape(); s.moveTo(2,1.45); s.lineTo(6.2,1.0); s.lineTo(7.8,0.75); s.lineTo(7.8,-0.75); s.lineTo(6.2,-1.0); s.lineTo(2,-1.45); s.closePath();
+  m.add(mesh(extrude(s,1.9,0.2), M.anod));
+  const R = 2.4, cx = 7.6, cy = -2.4;
+  const hook = mesh(new THREE.TorusGeometry(R,0.75,18,56,Math.PI*210/180), M.anod);
+  hook.position.set(cx,cy,0); hook.rotation.z = -Math.PI*120/180; hook.scale.z = 1.45; m.add(hook);
+  const rub = mesh(new THREE.TorusGeometry(R,0.83,18,32,Math.PI*100/180), M.rubber);
+  rub.position.set(cx,cy,0); rub.rotation.z = -Math.PI*120/180; rub.scale.z = 1.5; m.add(rub);
+  const a = -Math.PI*120/180;
+  const tip = mesh(new THREE.SphereGeometry(0.83,18,12), M.rubber); tip.position.set(cx+R*Math.cos(a), cy+R*Math.sin(a), 0); tip.scale.z = 1.5; m.add(tip);
+  const ledge = mesh(roundedBox(3.4,0.55,2.6,0.15), M.rubber); ledge.position.set(4.6,-1.75,0); m.add(ledge);
+  const loop = mesh(new THREE.TorusGeometry(0.6,0.17,10,28), M.steel); loop.position.set(3.4,1.95,0); m.add(loop);
+  return m;
+}
+ 
+/* ===== assemble systems ===== */
+function makeSystem(baseFn, modFns, opts){
+  const root = new THREE.Group(); root.position.copy(opts.rootPos); scene.add(root);
+  const base = baseFn(); root.add(base.group);
+  const mods = {};
+  Object.entries(modFns).forEach(([id,fn])=>{
+    const g = fn(); g.userData.home = opts.attach.clone(); g.position.copy(opts.attach);
+    g.userData.vis = 0; g.userData.target = 0; g.visible = false; root.add(g); mods[id] = g;
+  });
+  return Object.assign({root, base, mods, pending:null}, opts);
+}
+const SYS = {
+  leg: makeSystem(buildLegBase, {run:buildRun, bike:buildBike, swim:buildSwim}, {
+    rootPos:new V3(0,0,0), attach:new V3(0,14.5,0), out:new V3(0,-4,14), modEx:new V3(0,-9,0),
+    frame:{target:[1.5,34,0], R:35, dir:[0.55,0.22,1]} }),
+  arm: makeSystem(buildArmBase, {game:buildGame, cook:buildCook, climb:buildClimb}, {
+    rootPos:new V3(0,14,0), attach:new V3(0,0,0), out:new V3(14,0,6), modEx:new V3(8,0,0),
+    frame:{target:[-5,14,0], R:26, dir:[0.3,0.5,1]} })
+};
+Object.values(SYS).forEach(s=>{ s.root.visible = false; });
+['leg','arm'].forEach(k=>{ const m = SYS[k].mods[state.mod[k]]; m.userData.vis = m.userData.target = 1; m.visible = true; });
+SYS[state.sys].root.visible = true;
+ 
+let explodeT = 0, explodeTarget = 0, pulse = 0;
+function ease(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+ 
+window.__swap = function(){
+  const S = SYS[state.sys], want = state.mod[state.sys];
+  Object.entries(S.mods).forEach(([id,g])=>{ if(id!==want) g.userData.target = 0; });
+  S.pending = want;
+};
+window.__sys = function(){
+  Object.entries(SYS).forEach(([k,s])=>{ s.root.visible = (k===state.sys); });
+  frame();
+};
+ 
+function size(){
+  const w = viewer.clientWidth, h = viewer.clientHeight;
+  renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+function frame(){
+  const f = SYS[state.sys].frame;
+  const vf = camera.fov*Math.PI/180, hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
+  const dist = f.R/Math.sin(Math.min(vf,hf)/2);
+  controls.target.set(f.target[0],f.target[1],f.target[2]);
+  camera.position.copy(controls.target).addScaledVector(new V3(f.dir[0],f.dir[1],f.dir[2]).normalize(), dist);
+  controls.update();
+}
+size(); frame();
+new ResizeObserver(()=>size()).observe(viewer);
+ 
+const tSpin = $('#t-spin'), tEx = $('#t-explode');
+tSpin.setAttribute('aria-pressed', controls.autoRotate);
+tSpin.addEventListener('click',()=>{ controls.autoRotate = !controls.autoRotate; tSpin.setAttribute('aria-pressed', controls.autoRotate); });
+tEx.addEventListener('click',()=>{ explodeTarget = explodeTarget ? 0 : 1; tEx.setAttribute('aria-pressed', !!explodeTarget); });
+$('#t-reset').addEventListener('click',()=>{ explodeTarget = 0; tEx.setAttribute('aria-pressed', false); frame(); });
+controls.addEventListener('start',()=>{ if(controls.autoRotate){ controls.autoRotate = false; tSpin.setAttribute('aria-pressed', false); } });
+ 
+const clock = new THREE.Clock();
+function step(v, t, rate){ return v < t ? Math.min(t, v+rate) : Math.max(t, v-rate); }
+function loop(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const rate = reduce ? 1 : dt*2.6;
+  explodeT = step(explodeT, explodeTarget, reduce ? 1 : dt*2.2);
+  const ex = ease(explodeT);
+  Object.values(SYS).forEach(S=>{
+    S.base.parts.forEach(p=>{ p.position.copy(p.userData.home).addScaledVector(p.userData.ex, ex); });
+    let outgoing = 0;
+    Object.entries(S.mods).forEach(([id,g])=>{
+      const u = g.userData;
+      u.vis = step(u.vis, u.target, rate);
+      if(u.target===0) outgoing = Math.max(outgoing, u.vis);
+      g.visible = u.vis > 0.001;
+      const off = 1-ease(u.vis);
+      g.position.copy(u.home).addScaledVector(S.modEx, ex).addScaledVector(S.out, off);
+      g.rotation.y = (S===SYS.leg ? 0.9 : 0) * off;
+      g.rotation.x = (S===SYS.arm ? 1.2 : 0) * off;
+    });
+    if(S.pending && outgoing < 0.12){
+      S.mods[S.pending].userData.target = 1; S.pending = null; pulse = 1;
+    }
+  });
+  pulse = Math.max(0, pulse - dt*1.4);
+  const inc = SYS[state.sys].mods[state.mod[state.sys]].userData.vis;
+  const glow = pulse * (inc > 0.85 ? 1 : 0.35);
+  M.accent.emissive.setRGB(glow*0.85, glow*0.5, glow*0.05);
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+})();
+</script>
+ 
+</body>
+</html>
+ 
